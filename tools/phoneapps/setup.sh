@@ -51,7 +51,7 @@ else:
     bundle = f"com.rahuldas.weeklybudget.{team}"
     print(f"Weekly Budget isn't on the phone yet; it will install as {bundle}.")
 
-cfg = {"device": device, "team": team, "refreshAfterDays": 5, "keepBackups": 10, "apps": [{
+cfg = {"device": device, "team": team, "refreshAfterDays": 4, "keepBackups": 10, "apps": [{
     "key": "budget", "name": "Weekly Budget", "project": repo, "xcodeproj": "WeeklyBudget.xcodeproj",
     "scheme": "WeeklyBudget", "bundleId": bundle, "repo": "https://github.com/Rahul-Das-456/weekly-budget",
     "ipa": "WeeklyBudget.ipa", "autoUpdate": True}]}

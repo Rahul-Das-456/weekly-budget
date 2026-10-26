@@ -15,6 +15,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
+                if AppUpkeep.shared.expiresSoon || AppUpkeep.shared.newerVersion != nil {
+                    Section { UpkeepBanner() }.themedRow()
+                }
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("THIS WEEK \(theme.separator) \(weekRange)")
@@ -419,6 +422,8 @@ struct BudgetSettingsView: View {
                     .labelsHidden()
                 }
                 .themedRow()
+
+                UpkeepSettingsSection().themedRow()
             }
             .themedList()
             .navigationTitle("Settings")

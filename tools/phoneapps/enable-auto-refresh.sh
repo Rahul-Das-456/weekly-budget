@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Turns on automatic re-signing: every 6 hours the Mac runs `phoneapps refresh`, which re-signs any app
-# that's 5+ days old (only when the iPhone is reachable). Also adds the `phoneapps` command.
+# that's 4+ days old (only when the iPhone is reachable). Also adds the `phoneapps` command.
 # Undo with: ~/PhoneApps/enable-auto-refresh.sh --off
 set -e
 LABEL=com.rahuldas.phoneapps.refresh
@@ -34,5 +34,5 @@ launchctl bootout gui/$(id -u) $PLIST 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) $PLIST
 BIN=/usr/local/bin; [[ -w $BIN ]] || BIN=/opt/homebrew/bin
 [[ -w $BIN ]] && ln -sf ~/PhoneApps/phoneapps $BIN/phoneapps || echo "Couldn't add the phoneapps command to PATH; use ~/PhoneApps/phoneapps"
-echo "Auto refresh is on: checks every 6 hours, re-signs apps 5+ days old. Log: ~/PhoneApps/logs/phoneapps.log"
+echo "Auto refresh is on: checks every 6 hours, re-signs apps 4+ days old. Log: ~/PhoneApps/logs/phoneapps.log"
 echo "Turn it off any time: ~/PhoneApps/enable-auto-refresh.sh --off"

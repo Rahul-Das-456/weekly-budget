@@ -203,6 +203,10 @@ def install(a, app_path=None):
         lost = [p for p in before if p not in after]
         if lost:
             raise RuntimeError(f"{a['name']}: still missing {len(lost)} files after restore; backup kept at {saved}")
+    # Open the app once so it reschedules its "stops opening soon" alerts for the new signature.
+    # Fails quietly if the phone is locked; the alerts then say "already refreshed? open Budget once".
+    subprocess.run(["xcrun", "devicectl", "device", "process", "launch", "--device", DEVICE, a["bundleId"], "-q"],
+                   env=ENV, capture_output=True, timeout=60)
     s = load_state()
     s[a["key"]] = {"installed": time.time(), "version": installed().get(a["bundleId"], ("?", "?"))}
     save_state(s)

@@ -8,6 +8,7 @@ A simple iPhone app for a weekly budget.
 - Every Monday, spending resets to $0. Unused money in each category rolls over to the next week. Going over doesn't reduce next week's budget.
 - Past weeks are saved. Open **Past weeks** on the main screen to see what you spent each week, by category.
 - Pick a theme in Settings: Match phone, Light, Dark, Pink or Hacker (green on black).
+- Sideloaded copies warn you before they stop opening: a notification 2 days, 1 day and 3 hours ahead, plus a banner in the app, with the right fix for how you installed it (AltStore or phoneapps). The app also tells you when a newer version is on GitHub. See Settings → App updates.
 - Everything is saved on the phone. There's no account and no server.
 
 ## Install with AltStore
@@ -33,5 +34,6 @@ Claude Code reads `CLAUDE.md` and the `budget-tracker` skill in `.claude/skills/
 - `WeeklyBudget/WeeklyBudgetApp.swift`: app entry point. It checks for a new week whenever the app opens.
 - `WeeklyBudget/BudgetStore.swift`: data model, saving, the weekly reset, rollover and history, and migration from the 1.0 save format.
 - `WeeklyBudget/ContentView.swift`: all the screens.
+- `WeeklyBudget/AppUpkeep.swift`: expiry and new-version alerts (reads the app's signing profile and the repo's `project.yml`).
 - `WeeklyBudget/Theme.swift`: the color themes and the modifiers that apply them.
 - `WeeklyBudget/Assets.xcassets`: app icon and accent color.

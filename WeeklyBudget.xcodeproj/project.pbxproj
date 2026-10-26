@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5D2DF4CBA98D4002728948C4 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08D781C1B7003927A66D3F9 /* Theme.swift */; };
 		87BFA2CBCEC02B021EB9CC8C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 63C085D137427E8513DF80A4 /* Assets.xcassets */; };
+		B40D27E5D13FEA25F2224D27 /* AppUpkeep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78BCCB778FDF7732A6D7BF3A /* AppUpkeep.swift */; };
 		CFE6D8DFE217D378A7CBD198 /* BudgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4739E4BB13B92803CD52E6E5 /* BudgetStore.swift */; };
 		D0E8C68B7A9282B94AD324F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65374B3E594DA6112FA385D2 /* ContentView.swift */; };
 		E1CEB49D9C2139AA1DD1401B /* WeeklyBudgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D48782F638FCDD0846311EB /* WeeklyBudgetApp.swift */; };
@@ -19,6 +20,7 @@
 		63C085D137427E8513DF80A4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		65374B3E594DA6112FA385D2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		6D48782F638FCDD0846311EB /* WeeklyBudgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyBudgetApp.swift; sourceTree = "<group>"; };
+		78BCCB778FDF7732A6D7BF3A /* AppUpkeep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpkeep.swift; sourceTree = "<group>"; };
 		8C7C4F27FAECAB7D05DE552A /* WeeklyBudget.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WeeklyBudget.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C08D781C1B7003927A66D3F9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -27,6 +29,7 @@
 		9552C9DB80AF61985C43F3EB /* WeeklyBudget */ = {
 			isa = PBXGroup;
 			children = (
+				78BCCB778FDF7732A6D7BF3A /* AppUpkeep.swift */,
 				63C085D137427E8513DF80A4 /* Assets.xcassets */,
 				4739E4BB13B92803CD52E6E5 /* BudgetStore.swift */,
 				65374B3E594DA6112FA385D2 /* ContentView.swift */,
@@ -122,6 +125,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B40D27E5D13FEA25F2224D27 /* AppUpkeep.swift in Sources */,
 				CFE6D8DFE217D378A7CBD198 /* BudgetStore.swift in Sources */,
 				D0E8C68B7A9282B94AD324F2 /* ContentView.swift in Sources */,
 				5D2DF4CBA98D4002728948C4 /* Theme.swift in Sources */,
@@ -258,7 +262,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Budget;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -268,7 +272,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rahuldas.weeklybudget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -283,7 +287,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Budget;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -293,7 +297,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rahuldas.weeklybudget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
