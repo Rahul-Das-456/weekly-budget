@@ -4,8 +4,10 @@ A simple iPhone app for a weekly budget.
 
 - Set a weekly budget for each category. It starts with Food, Groceries, Entertainment and Uber / Lyft.
 - Add your own categories, each with a name, a budget and an icon. You can also rename, reorder or delete them.
-- Log an expense with an amount and an optional note.
+- Log an expense with an amount and an optional note. Tap an expense to edit or delete it.
 - Every Monday, spending resets to $0. Unused money in each category rolls over to the next week. Going over doesn't reduce next week's budget.
+- Past weeks are saved. Open **Past weeks** on the main screen to see what you spent each week, by category.
+- Pick a theme in Settings: Match phone, Light, Dark, Pink or Hacker (green on black).
 - Everything is saved on the phone. There's no account and no server.
 
 ## Install with AltStore
@@ -25,6 +27,7 @@ The Xcode project is generated from `project.yml` with [XcodeGen](https://github
 ## Files
 
 - `WeeklyBudget/WeeklyBudgetApp.swift`: app entry point. It checks for a new week whenever the app opens.
-- `WeeklyBudget/BudgetStore.swift`: data model, saving, the weekly reset and rollover, and migration from the 1.0 save format.
+- `WeeklyBudget/BudgetStore.swift`: data model, saving, the weekly reset, rollover and history, and migration from the 1.0 save format.
 - `WeeklyBudget/ContentView.swift`: all the screens.
+- `WeeklyBudget/Theme.swift`: the color themes and the modifiers that apply them.
 - `WeeklyBudget/Assets.xcassets`: app icon and accent color.

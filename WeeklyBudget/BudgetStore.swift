@@ -34,11 +34,29 @@ struct Expense: Codable, Identifiable {
     var date = Date()
 }
 
+/// A finished week, kept so past spending can be looked back on.
+struct WeekRecord: Codable, Identifiable {
+    var weekStart: Date
+    /// Categories as they were that week, including that week's rollover.
+    var categories: [BudgetCategory]
+    var expenses: [Expense]
+
+    var id: Date { weekStart }
+    var totalAvailable: Double { categories.reduce(0) { $0 + $1.available } }
+    var totalSpent: Double { expenses.reduce(0) { $0 + $1.amount } }
+    func expenses(for c: BudgetCategory) -> [Expense] {
+        expenses.filter { $0.categoryID == c.id }.sorted { $0.date > $1.date }
+    }
+    func spent(for c: BudgetCategory) -> Double { expenses(for: c).reduce(0) { $0 + $1.amount } }
+}
+
 private struct SavedState: Codable {
     var categories: [BudgetCategory]
     var weekStart: Date
     var expenses: [Expense]
     var hasSetBudgets: Bool
+    /// Optional so saves from before history existed still load.
+    var history: [WeekRecord]?
 }
 
 /// Format written by version 1.0, which had four fixed categories.
@@ -82,6 +100,8 @@ final class BudgetStore {
     private(set) var expenses: [Expense] { didSet { save() } }
     private(set) var weekStart: Date { didSet { save() } }
     var hasSetBudgets: Bool { didSet { save() } }
+    /// Past weeks, newest first.
+    private(set) var history: [WeekRecord] { didSet { save() } }
 
     private static let fileURL = URL.documentsDirectory.appending(path: "budget-v2.json")
     private static let legacyURL = URL.documentsDirectory.appending(path: "budget.json")
@@ -101,6 +121,7 @@ final class BudgetStore {
         expenses = state.expenses
         weekStart = state.weekStart
         hasSetBudgets = state.hasSetBudgets
+        history = state.history ?? []
         resetIfNewWeek()
         save()
     }
@@ -112,11 +133,15 @@ final class BudgetStore {
         return cal.dateInterval(of: .weekOfYear, for: now)!.start
     }
 
-    /// On a new week: unused money in each category rolls over, then spending clears.
-    /// Overspending does not reduce next week. Weeks the app wasn't opened roll over in full.
+    /// On a new week: the finished week is saved to history, unused money in each category
+    /// rolls over, then spending clears. Overspending does not reduce next week.
+    /// Weeks the app wasn't opened roll over in full.
     func resetIfNewWeek() {
         let current = Self.currentWeekStart()
         guard weekStart < current else { return }
+        if !expenses.isEmpty {
+            history.insert(WeekRecord(weekStart: weekStart, categories: categories, expenses: expenses), at: 0)
+        }
         let weeks = max(1, Int((current.timeIntervalSince(weekStart) / (7 * 86_400)).rounded()))
         categories = categories.map { c in
             var c = c
@@ -142,6 +167,10 @@ final class BudgetStore {
         expenses.append(Expense(categoryID: id, amount: amount, note: note))
     }
 
+    func update(_ e: Expense) {
+        if let i = expenses.firstIndex(where: { $0.id == e.id }) { expenses[i] = e }
+    }
+
     func delete(_ e: Expense) { expenses.removeAll { $0.id == e.id } }
 
     func upsert(_ c: BudgetCategory) {
@@ -156,11 +185,21 @@ final class BudgetStore {
     func moveCategories(from: IndexSet, to: Int) { categories.move(fromOffsets: from, toOffset: to) }
 
     private func save() {
-        let state = SavedState(categories: categories, weekStart: weekStart, expenses: expenses, hasSetBudgets: hasSetBudgets)
+        let state = SavedState(categories: categories, weekStart: weekStart, expenses: expenses,
+                               hasSetBudgets: hasSetBudgets, history: history)
         try? JSONEncoder().encode(state).write(to: Self.fileURL, options: .atomic)
     }
 }
 
 extension Double {
     var money: String { formatted(.currency(code: "USD")) }
+}
+
+extension Date {
+    /// "Oct 20 – Oct 26" for the week starting on this date.
+    var weekRange: String {
+        let end = Calendar.current.date(byAdding: .day, value: 6, to: self)!
+        let f = Date.FormatStyle().month(.abbreviated).day()
+        return "\(formatted(f)) – \(end.formatted(f))"
+    }
 }
