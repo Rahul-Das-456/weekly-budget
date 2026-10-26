@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+"""phoneapps: keep Rahul's own apps on his iPhone without ever losing their data.
+
+Every install is an in-place update under the same bundle ID, so iOS keeps the app's data.
+On top of that, each install backs the data up first, checks afterwards that every file is
+still there, and puts it back if anything went missing.
+
+  phoneapps status                  what's installed, days since signing, backups
+  phoneapps install uke|budget|all  back up, build, sign, install, verify
+  phoneapps update budget           pull the GitHub repo, take its .ipa, re-sign it under the
+                                    phone's bundle ID, install, verify (data kept)
+  phoneapps install-ipa budget <file.ipa>   same, for an .ipa on disk
+  phoneapps refresh [--force]       re-sign apps older than refreshAfterDays (run by launchd)
+  phoneapps backup uke|budget|all   copy app data to ~/PhoneApps/backups
+  phoneapps restore uke|budget [backup-folder]   put a backup back on the phone
+  phoneapps backups uke|budget      list backups
+
+Signing uses the Apple ID already signed in to Xcode (free account: 7-day signatures).
+"""
+import json, os, shutil, subprocess, sys, tempfile, time
+from datetime import datetime
+
+HOME = os.environ.get("PHONEAPPS_HOME", os.path.expanduser("~/PhoneApps"))
+CONFIG = json.load(open(os.path.join(HOME, "apps.json")))
+DEVICE, TEAM = CONFIG["device"], CONFIG["team"]
+STATE_PATH = os.path.join(HOME, "state.json")
+BACKUPS = os.path.join(HOME, "backups")
+LOGS = os.path.join(HOME, "logs")
+# What holds an app's data. Caches and tmp are left out on purpose.
+DATA_FOLDERS = ["Documents", "Library/Preferences", "Library/Application Support"]
+ENV = dict(os.environ, PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+
+os.makedirs(BACKUPS, exist_ok=True)
+os.makedirs(LOGS, exist_ok=True)
+
+
+def log(msg):
+    line = f"{datetime.now():%Y-%m-%d %H:%M:%S}  {msg}"
+    print(line, flush=True)
+    with open(os.path.join(LOGS, "phoneapps.log"), "a") as f:
+        f.write(line + "\n")
+
+
+def notify(msg):
+    subprocess.run(["osascript", "-e", f'display notification "{msg}" with title "Phone Apps"'], env=ENV)
+
+
+def run(cmd, check=True, quiet=False, timeout=1800):
+    r = subprocess.run(cmd, capture_output=True, text=True, env=ENV, timeout=timeout)
+    if check and r.returncode != 0:
+        tail = (r.stdout + r.stderr).strip().splitlines()[-12:]
+        raise RuntimeError(f"{' '.join(cmd[:4])}... failed:\n" + "\n".join(tail))
+    return r
+
+
+def devicectl_json(args, timeout=300):
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as t:
+        path = t.name
+    try:
+        run(["xcrun", "devicectl", *args, "--json-output", path, "-q"], timeout=timeout)
+        return json.load(open(path))["result"]
+    finally:
+        os.unlink(path)
+
+
+def load_state():
+    return json.load(open(STATE_PATH)) if os.path.exists(STATE_PATH) else {}
+
+
+def save_state(s):
+    json.dump(s, open(STATE_PATH, "w"), indent=2)
+
+
+def app(key):
+    for a in CONFIG["apps"]:
+        if a["key"] == key:
+            return a
+    sys.exit(f"Unknown app '{key}'. Use one of: " + ", ".join(a["key"] for a in CONFIG["apps"]))
+
+
+def pick(arg):
+    return CONFIG["apps"] if arg == "all" else [app(arg)]
+
+
+# ---------------------------------------------------------------- phone
+
+def phone_ready():
+    try:
+        for d in devicectl_json(["list", "devices"], timeout=60)["devices"]:
+            if d["identifier"] == DEVICE:
+                cp = d.get("connectionProperties", {})
+                return cp.get("pairingState") == "paired" and d.get("deviceProperties", {}).get("bootState") == "booted"
+    except Exception as e:
+        log(f"phone check failed: {e}")
+    return False
+
+
+def installed():
+    """bundleId -> (version, build) for apps on the phone."""
+    out = {}
+    for a in devicectl_json(["device", "info", "apps", "--device", DEVICE])["apps"]:
+        out[a["bundleIdentifier"]] = (a.get("version", "?"), a.get("bundleVersion", "?"))
+    return out
+
+
+def data_files(a):
+    """relativePath -> size for every data file the app has (Documents, Preferences, Application Support)."""
+    res = devicectl_json(["device", "info", "files", "--device", DEVICE, "--domain-type", "appDataContainer",
+                          "--domain-identifier", a["bundleId"]])
+    files = {}
+    for f in res["files"]:
+        p = f["relativePath"]
+        if f["resources"]["isDirectory"]:
+            continue
+        if any(p == d or p.startswith(d + "/") for d in DATA_FOLDERS):
+            files[p] = f["metadata"]["size"]
+    return files
+
+
+# ---------------------------------------------------------------- backup / restore
+
+def backup(a):
+    """Copies the app's data folders to backups/<key>/<time>/ and writes a manifest. Returns the folder."""
+    if a["bundleId"] not in installed():
+        log(f"{a['name']}: not on the phone yet, nothing to back up")
+        return None
+    files = data_files(a)
+    dest = os.path.join(BACKUPS, a["key"], datetime.now().strftime("%Y-%m-%d_%H%M%S"))
+    os.makedirs(dest)
+    for folder in DATA_FOLDERS:
+        if not any(p.startswith(folder + "/") for p in files):
+            continue
+        run(["xcrun", "devicectl", "device", "copy", "from", "--device", DEVICE, "--domain-type", "appDataContainer",
+             "--domain-identifier", a["bundleId"], "--source", folder, "--destination", os.path.join(dest, folder), "-q"])
+    json.dump({"bundleId": a["bundleId"], "files": files, "time": time.time()}, open(os.path.join(dest, "manifest.json"), "w"), indent=1)
+    # Check every file arrived.
+    missing = [p for p in files if not os.path.exists(os.path.join(dest, p))]
+    if missing:
+        raise RuntimeError(f"backup of {a['name']} is missing {len(missing)} files, e.g. {missing[:3]}")
+    total = sum(files.values())
+    log(f"{a['name']}: backed up {len(files)} files ({total / 1e6:.1f} MB) to {dest}")
+    prune(a)
+    return dest
+
+
+def prune(a):
+    folder = os.path.join(BACKUPS, a["key"])
+    all_ = sorted(os.listdir(folder))
+    for old in all_[:-CONFIG["keepBackups"]]:
+        shutil.rmtree(os.path.join(folder, old))
+
+
+def restore(a, src=None):
+    folder = os.path.join(BACKUPS, a["key"])
+    if src is None:
+        choices = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+        if not choices:
+            sys.exit(f"No backups for {a['name']}.")
+        src = os.path.join(folder, choices[-1])
+    elif not os.path.isabs(src):
+        src = os.path.join(folder, src)
+    manifest = json.load(open(os.path.join(src, "manifest.json")))
+    if manifest["bundleId"] != a["bundleId"]:
+        sys.exit("That backup belongs to a different app ID.")
+    for p in manifest["files"]:
+        run(["xcrun", "devicectl", "device", "copy", "to", "--device", DEVICE, "--domain-type", "appDataContainer",
+             "--domain-identifier", a["bundleId"], "--source", os.path.join(src, p), "--destination", p, "-q"])
+    log(f"{a['name']}: restored {len(manifest['files'])} files from {src}")
+
+
+# ---------------------------------------------------------------- install
+
+def build(a):
+    proj = os.path.expanduser(a["project"])
+    if os.path.exists(os.path.join(proj, "project.yml")):
+        subprocess.run(["xcodegen", "generate", "-q"], cwd=proj, env=ENV, check=True)
+    dd = os.path.join(HOME, "build", a["key"])
+    r = subprocess.run(["xcodebuild", "-project", os.path.join(proj, a["xcodeproj"]), "-scheme", a["scheme"],
+                        "-configuration", "Release", "-sdk", "iphoneos", "-derivedDataPath", dd,
+                        "-allowProvisioningUpdates", f"DEVELOPMENT_TEAM={TEAM}", "CODE_SIGN_STYLE=Automatic",
+                        "CODE_SIGN_IDENTITY=Apple Development", f"PRODUCT_BUNDLE_IDENTIFIER={a['bundleId']}",
+                        "build", "-quiet"], cwd=proj, env=ENV, capture_output=True, text=True, timeout=1800)
+    if r.returncode != 0:
+        raise RuntimeError(f"build of {a['name']} failed:\n" + "\n".join((r.stdout + r.stderr).strip().splitlines()[-15:]))
+    products = os.path.join(dd, "Build", "Products", "Release-iphoneos")
+    return os.path.join(products, next(f for f in os.listdir(products) if f.endswith(".app")))
+
+
+def install(a, app_path=None):
+    log(f"{a['name']}: installing" + (f" {os.path.basename(app_path)}" if app_path else ""))
+    before = data_files(a) if a["bundleId"] in installed() else {}
+    saved = backup(a) if before else None
+    if app_path is None:
+        app_path = build(a)
+    run(["xcrun", "devicectl", "device", "install", "app", "--device", DEVICE, app_path, "-q"])
+    # Same bundle ID → iOS keeps the data. Prove it.
+    after = data_files(a)
+    lost = [p for p in before if p not in after]
+    if lost:
+        log(f"{a['name']}: {len(lost)} files missing after install, restoring from {saved}")
+        restore(a, saved)
+        after = data_files(a)
+        lost = [p for p in before if p not in after]
+        if lost:
+            raise RuntimeError(f"{a['name']}: still missing {len(lost)} files after restore; backup kept at {saved}")
+    s = load_state()
+    s[a["key"]] = {"installed": time.time(), "version": installed().get(a["bundleId"], ("?", "?"))}
+    save_state(s)
+    log(f"{a['name']}: installed, {len(before)} data files kept")
+
+
+# ---------------------------------------------------------------- .ipa from GitHub
+
+def signing_from_build(a):
+    """(profile path, identity name) from a fresh signed build of the app; Xcode renews the profile."""
+    built = build(a)
+    profile = os.path.join(built, "embedded.mobileprovision")
+    info = run(["codesign", "-dvv", built]).stderr
+    identity = next(l.split("=", 1)[1] for l in info.splitlines() if l.startswith("Authority="))
+    return profile, identity
+
+
+def resign_ipa(a, ipa):
+    """Unpacks an .ipa, gives it the phone's bundle ID, a current profile and our signature. Returns the .app path."""
+    profile, identity = signing_from_build(a)
+    work = tempfile.mkdtemp(prefix="phoneapps-")
+    run(["ditto", "-x", "-k", ipa, work])
+    payload = os.path.join(work, "Payload")
+    app_path = os.path.join(payload, next(f for f in os.listdir(payload) if f.endswith(".app")))
+    info = os.path.join(app_path, "Info.plist")
+    old_id = run(["/usr/libexec/PlistBuddy", "-c", "Print :CFBundleIdentifier", info]).stdout.strip()
+    version = run(["/usr/libexec/PlistBuddy", "-c", "Print :CFBundleShortVersionString", info]).stdout.strip()
+    run(["/usr/libexec/PlistBuddy", "-c", f"Set :CFBundleIdentifier {a['bundleId']}", info])
+    shutil.copy(profile, os.path.join(app_path, "embedded.mobileprovision"))
+    prof = os.path.join(work, "profile.plist")
+    with open(prof, "w") as f:
+        f.write(run(["security", "cms", "-D", "-i", profile]).stdout)
+    ents = os.path.join(work, "entitlements.plist")
+    run(["plutil", "-extract", "Entitlements", "xml1", "-o", ents, prof])
+    fw = os.path.join(app_path, "Frameworks")
+    if os.path.isdir(fw):
+        for f in os.listdir(fw):
+            run(["codesign", "-f", "-s", identity, os.path.join(fw, f)])
+    run(["codesign", "-f", "-s", identity, "--entitlements", ents, app_path])
+    run(["codesign", "--verify", "--deep", "--strict", app_path])
+    log(f"{a['name']}: re-signed v{version} ({old_id} -> {a['bundleId']})")
+    return app_path
+
+
+def update_from_github(a):
+    """git pull (fast-forward only, so local edits are never overwritten), then install the repo's .ipa."""
+    proj = os.path.expanduser(a["project"])
+    if run(["git", "-C", proj, "status", "--porcelain", "--untracked-files=no"]).stdout.strip():
+        raise RuntimeError(f"{proj} has local changes; commit or stash them before updating from GitHub")
+    run(["git", "-C", proj, "pull", "--ff-only", "-q", "origin", "main"], timeout=300)
+    head = run(["git", "-C", proj, "log", "--oneline", "-1"]).stdout.strip()
+    log(f"{a['name']}: repo at {head}")
+    install(a, resign_ipa(a, os.path.join(proj, a["ipa"])))
+
+
+# ---------------------------------------------------------------- commands
+
+def days_since(key):
+    t = load_state().get(key, {}).get("installed")
+    return None if t is None else (time.time() - t) / 86400
+
+
+def cmd_status():
+    s = load_state()
+    ready = phone_ready()
+    print(f"Phone: {'connected' if ready else 'not reachable (same Wi-Fi? unlocked?)'}")
+    apps_on_phone = installed() if ready else {}
+    for a in CONFIG["apps"]:
+        d = days_since(a["key"])
+        n = len(os.listdir(os.path.join(BACKUPS, a["key"]))) if os.path.isdir(os.path.join(BACKUPS, a["key"])) else 0
+        ver = apps_on_phone.get(a["bundleId"])
+        left = f"{7 - d:.1f} days left" if d is not None else "not signed by phoneapps yet"
+        print(f"  {a['name']:<14} {('v' + ver[0]) if ver else ('not installed' if ready else '?'):<14} {left:<28} {n} backups")
+
+
+def behind_github(a):
+    """True when the repo on GitHub has commits this Mac hasn't installed yet."""
+    if not (a.get("autoUpdate") and "ipa" in a):
+        return False
+    proj = os.path.expanduser(a["project"])
+    try:
+        run(["git", "-C", proj, "fetch", "-q", "origin", "main"], timeout=120)
+        return run(["git", "-C", proj, "rev-parse", "HEAD"]).stdout != run(["git", "-C", proj, "rev-parse", "origin/main"]).stdout
+    except Exception as e:
+        log(f"{a['name']}: couldn't check GitHub: {e}")
+        return False
+
+
+def cmd_refresh(force=False):
+    due = [a for a in CONFIG["apps"]
+           if force or (days_since(a["key"]) or 99) >= CONFIG["refreshAfterDays"] or behind_github(a)]
+    if not due:
+        return
+    if not phone_ready():
+        overdue = [a["name"] for a in due if (days_since(a["key"]) or 99) >= 6]
+        log("refresh due but the phone isn't reachable; will try again later")
+        if overdue:
+            notify(f"{', '.join(overdue)} expire soon. Unlock your iPhone on the same Wi-Fi as the Mac.")
+        return
+    for a in due:
+        try:
+            if a.get("autoUpdate") and "ipa" in a:
+                try:
+                    update_from_github(a)   # newest version from the repo, data kept
+                    continue
+                except RuntimeError as e:
+                    log(f"{a['name']}: GitHub update skipped ({e}); re-signing the local copy instead")
+            install(a)
+        except Exception as e:
+            log(f"{a['name']}: refresh failed: {e}")
+            if (days_since(a["key"]) or 99) >= 6:
+                notify(f"Couldn't refresh {a['name']}. It expires soon. Run: phoneapps install {a['key']}")
+            continue
+    notify("Apps refreshed for another 7 days. Your data is untouched.")
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return
+    c = args[0]
+    try:
+        if c == "status":
+            cmd_status()
+        elif c == "install":
+            for a in pick(args[1] if len(args) > 1 else "all"):
+                install(a)
+        elif c == "update":
+            a = app(args[1] if len(args) > 1 else "budget")
+            if "ipa" not in a:
+                sys.exit(f"{a['name']} has no .ipa in its repo; use: phoneapps install {a['key']}")
+            update_from_github(a)
+        elif c == "install-ipa":
+            a = app(args[1])
+            install(a, resign_ipa(a, os.path.abspath(args[2])))
+        elif c == "refresh":
+            cmd_refresh(force="--force" in args)
+        elif c == "backup":
+            for a in pick(args[1] if len(args) > 1 else "all"):
+                backup(a)
+        elif c == "restore":
+            restore(app(args[1]), args[2] if len(args) > 2 else None)
+        elif c == "backups":
+            folder = os.path.join(BACKUPS, app(args[1]).get("key"))
+            for b in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+                m = json.load(open(os.path.join(folder, b, "manifest.json")))
+                print(f"  {b}   {len(m['files'])} files")
+        else:
+            sys.exit(f"Unknown command '{c}'. Try: phoneapps help")
+    except RuntimeError as e:
+        log(f"ERROR: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

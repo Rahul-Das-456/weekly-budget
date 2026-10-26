@@ -19,10 +19,14 @@ Download `WeeklyBudget.ipa` from this repo. In AltStore, go to My Apps, tap **+*
 You need a Mac with Xcode 16 or newer. The app runs on iOS 17+.
 
 1. Open `WeeklyBudget.xcodeproj` in Xcode.
-2. Under **Signing & Capabilities**, pick your Apple ID as the Team. If the bundle ID is already taken, change it.
+2. Under **Signing & Capabilities**, pick your Apple ID as the Team. Don't change the bundle ID in the repo: a phone keeps its budget only when updates have the same ID. If Xcode says it's taken, change it only on your machine and don't commit it.
 3. Plug in your iPhone, select it, and press Run.
 
 The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen). If you change `project.yml`, run `xcodegen generate`.
+
+## Working on it with Claude
+
+Claude Code reads `CLAUDE.md` and the `budget-tracker` skill in `.claude/skills/` from this repo, so any Claude session that opens it knows how the app works, how to test it, and the rules that keep people's data safe.
 
 ## Files
 
