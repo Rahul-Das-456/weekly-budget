@@ -10,6 +10,7 @@
 		87BFA2CBCEC02B021EB9CC8C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 63C085D137427E8513DF80A4 /* Assets.xcassets */; };
 		CFE6D8DFE217D378A7CBD198 /* BudgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4739E4BB13B92803CD52E6E5 /* BudgetStore.swift */; };
 		D0E8C68B7A9282B94AD324F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65374B3E594DA6112FA385D2 /* ContentView.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* Theme.swift */; };
 		E1CEB49D9C2139AA1DD1401B /* WeeklyBudgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D48782F638FCDD0846311EB /* WeeklyBudgetApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -17,6 +18,7 @@
 		4739E4BB13B92803CD52E6E5 /* BudgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetStore.swift; sourceTree = "<group>"; };
 		63C085D137427E8513DF80A4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		65374B3E594DA6112FA385D2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		6D48782F638FCDD0846311EB /* WeeklyBudgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyBudgetApp.swift; sourceTree = "<group>"; };
 		8C7C4F27FAECAB7D05DE552A /* WeeklyBudget.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WeeklyBudget.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -28,6 +30,7 @@
 				63C085D137427E8513DF80A4 /* Assets.xcassets */,
 				4739E4BB13B92803CD52E6E5 /* BudgetStore.swift */,
 				65374B3E594DA6112FA385D2 /* ContentView.swift */,
+				B2C3D4E5F60718293A4B5C6D /* Theme.swift */,
 				6D48782F638FCDD0846311EB /* WeeklyBudgetApp.swift */,
 			);
 			path = WeeklyBudget;
@@ -121,6 +124,7 @@
 			files = (
 				CFE6D8DFE217D378A7CBD198 /* BudgetStore.swift in Sources */,
 				D0E8C68B7A9282B94AD324F2 /* ContentView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* Theme.swift in Sources */,
 				E1CEB49D9C2139AA1DD1401B /* WeeklyBudgetApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
