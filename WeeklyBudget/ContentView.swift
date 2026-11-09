@@ -133,11 +133,12 @@ struct ContentView: View {
                 try? await Task.sleep(for: .milliseconds(300))
                 if !store.hasSetBudgets { showBudgets = true }
                 // Debug / screenshots: `-importFiles a.png,b.png` (in Documents) opens the import sheet,
-                // `-showHistory YES` opens Past weeks.
+                // `-showHistory YES` opens Past weeks, `-showSettings YES` opens Settings.
                 if let names = UserDefaults.standard.string(forKey: "importFiles") {
                     importSource = .files(names.split(separator: ",").map { URL.documentsDirectory.appending(path: String($0)) })
                 }
                 if UserDefaults.standard.bool(forKey: "showHistory") { showHistory = true }
+                if UserDefaults.standard.bool(forKey: "showSettings") { showBudgets = true }
             }
         }
         .id(titleBarGeneration)
@@ -468,7 +469,16 @@ struct BudgetSettingsView: View {
                 } header: {
                     Text("Categories")
                 } footer: {
-                    Text("Every Monday, spending resets to $0 and any unused money in a category rolls over to the next week. Swipe left to delete a category.")
+                    Text(store.rolloverEnabled
+                         ? "Every Monday, spending resets to $0 and any unused money in a category rolls over to the next week. Swipe left to delete a category."
+                         : "Every Monday, spending resets to $0 and each category starts again from its weekly budget. Swipe left to delete a category.")
+                }
+                .themedRow()
+
+                Section {
+                    Toggle("Roll over unused money", isOn: Bindable(store).rolloverEnabled)
+                } footer: {
+                    Text("Turning this off clears any money already rolled over.")
                 }
                 .themedRow()
 
@@ -544,7 +554,7 @@ struct CategoryEditView: View {
                     .padding(.vertical, 4)
                 }
                 .themedRow()
-                if !isNew {
+                if !isNew && store.rolloverEnabled {
                     Section {
                         LabeledContent("Rolled over", value: category.rollover.money)
                         if category.rollover > 0 {

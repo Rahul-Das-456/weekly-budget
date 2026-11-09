@@ -57,6 +57,8 @@ private struct SavedState: Codable {
     var hasSetBudgets: Bool
     /// Optional so saves from before history existed still load.
     var history: [WeekRecord]?
+    /// Optional so saves from before 1.5 load with rollover on.
+    var rolloverEnabled: Bool?
 }
 
 /// Format written by version 1.0, which had four fixed categories.
@@ -102,6 +104,14 @@ final class BudgetStore {
     var hasSetBudgets: Bool { didSet { save() } }
     /// Past weeks, newest first.
     private(set) var history: [WeekRecord] { didSet { save() } }
+    /// When off, unused money doesn't carry into the next week. Turning it off clears any
+    /// rollover already carried in, so every category starts from its plain weekly budget.
+    var rolloverEnabled: Bool {
+        didSet {
+            if !rolloverEnabled { categories = categories.map { var c = $0; c.rollover = 0; return c } }
+            save()
+        }
+    }
 
     private static let fileURL = URL.documentsDirectory.appending(path: "budget-v2.json")
     private static let legacyURL = URL.documentsDirectory.appending(path: "budget.json")
@@ -122,6 +132,7 @@ final class BudgetStore {
         weekStart = state.weekStart
         hasSetBudgets = state.hasSetBudgets
         history = state.history ?? []
+        rolloverEnabled = state.rolloverEnabled ?? true
         resetIfNewWeek()
         save()
     }
@@ -135,7 +146,7 @@ final class BudgetStore {
 
     /// On a new week: the finished week is saved to history, unused money in each category
     /// rolls over, then spending clears. Overspending does not reduce next week.
-    /// Weeks the app wasn't opened roll over in full.
+    /// Weeks the app wasn't opened roll over in full. With rollover off, every week starts fresh.
     func resetIfNewWeek() {
         let current = Self.currentWeekStart()
         guard weekStart < current else { return }
@@ -146,7 +157,7 @@ final class BudgetStore {
         categories = categories.map { c in
             var c = c
             let unused = max(0, c.available - spent(for: c))
-            c.rollover = unused + Double(weeks - 1) * c.budget
+            c.rollover = rolloverEnabled ? unused + Double(weeks - 1) * c.budget : 0
             return c
         }
         expenses = []
@@ -194,7 +205,8 @@ final class BudgetStore {
 
     private func save() {
         let state = SavedState(categories: categories, weekStart: weekStart, expenses: expenses,
-                               hasSetBudgets: hasSetBudgets, history: history)
+                               hasSetBudgets: hasSetBudgets, history: history,
+                               rolloverEnabled: rolloverEnabled)
         try? JSONEncoder().encode(state).write(to: Self.fileURL, options: .atomic)
     }
 }

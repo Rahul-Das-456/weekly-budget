@@ -6,6 +6,7 @@ A simple iPhone app for a weekly budget.
 - Add your own categories, each with a name, a budget and an icon. You can also rename, reorder or delete them.
 - Log an expense with an amount and an optional note. Tap an expense to edit or delete it.
 - Every Monday, spending resets to $0. Unused money in each category rolls over to the next week. Going over doesn't reduce next week's budget.
+- Don't want rollover? Turn off **Roll over unused money** in Settings. Every category then starts each week at its plain weekly budget, and any money already rolled over is cleared.
 - Past weeks are saved. Open **Past weeks** on the main screen to see what you spent each week, by category. Swipe left to delete a week, or tap **Clear all**. Deleting past weeks doesn't change the money already rolled over.
 - Import charges from a screenshot of your card app: tap the scan button next to **Add expense** (or **Import from screenshot**), pick up to 5 screenshots, check the list, and tap **Add**. The app reads each charge's merchant, amount and date on the phone (Apple's text recognition, nothing is uploaded), skips running balances, and guesses a category. It starts temporary holds, charges from past weeks and charges you already added unchecked. Pick a different category once and it remembers that merchant next time.
 - Pick a theme in Settings: Match phone, Light, Dark, Pink or Hacker (green on black).
