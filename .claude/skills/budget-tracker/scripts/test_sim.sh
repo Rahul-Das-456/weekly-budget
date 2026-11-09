@@ -5,7 +5,9 @@
 #   thisweek  current week, Food over budget, a custom "Coffee" category, some rollover
 #   lastweek  save file from last week (Food $30 of 100, Uber $60 of 50) → reopening must roll over Food +70, Uber +0
 #   legacy    v1.0 save file (budget.json) from last week → must migrate to budget-v2.json and roll over
+#   import    thisweek data plus sample-statement.png in Documents; opens the screenshot import sheet
 #   keep      leave whatever data is there
+# Extra launch arguments: LAUNCH_ARGS="-showHistory YES" test_sim.sh lastweek shot.png
 set -e
 SCEN=${1:-thisweek}; SHOT=${2:-$TMPDIR/budget.png}
 ROOT="$(git -C "${0:A:h}" rev-parse --show-toplevel)"
@@ -22,8 +24,9 @@ xcrun simctl terminate $DEV $BID 2>/dev/null || true
 xcrun simctl install $DEV build/Build/Products/Debug-iphonesimulator/WeeklyBudget.app
 DOCS="$(xcrun simctl get_app_container $DEV $BID data)/Documents"; mkdir -p "$DOCS"
 python3 "${0:A:h}/seed.py" "$SCEN" "$DOCS"
-xcrun simctl launch $DEV $BID >/dev/null
-sleep 7   # first launch after boot can show a blank frame for a few seconds
+[[ $SCEN == import ]] && LAUNCH_ARGS="-importFiles sample-statement.png $LAUNCH_ARGS"
+xcrun simctl launch $DEV $BID ${=LAUNCH_ARGS} >/dev/null
+sleep 9   # first launch after boot can show a blank frame for a few seconds
 xcrun simctl io $DEV screenshot "$SHOT" >/dev/null 2>&1
 echo "Screenshot: $SHOT"
 [[ -f "$DOCS/budget-v2.json" ]] && python3 -c "

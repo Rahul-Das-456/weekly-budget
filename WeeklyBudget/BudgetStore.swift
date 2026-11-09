@@ -162,10 +162,18 @@ final class BudgetStore {
     var totalAvailable: Double { categories.reduce(0) { $0 + $1.available } }
     var totalSpent: Double { expenses.reduce(0) { $0 + $1.amount } }
 
-    func add(_ amount: Double, to id: UUID, note: String) {
+    func add(_ amount: Double, to id: UUID, note: String, date: Date = .now) {
         resetIfNewWeek()
-        expenses.append(Expense(categoryID: id, amount: amount, note: note))
+        expenses.append(Expense(categoryID: id, amount: amount, note: note, date: date))
     }
+
+    /// Removes saved past weeks. Only the record goes; rollover already carried into this week stays.
+    func deleteWeeks(_ weeks: [WeekRecord]) {
+        let ids = Set(weeks.map(\.id))
+        history.removeAll { ids.contains($0.id) }
+    }
+
+    func clearHistory() { history = [] }
 
     func update(_ e: Expense) {
         if let i = expenses.firstIndex(where: { $0.id == e.id }) { expenses[i] = e }

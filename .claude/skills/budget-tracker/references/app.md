@@ -5,7 +5,7 @@ SwiftUI iPhone app, iOS 17+, no dependencies, no server. Display name "Budget", 
 - Project: this repo (https://github.com/Rahul-Das-456/weekly-budget). Rahul's copy is `~/WeeklyBudget`.
 - GitHub (public): https://github.com/Rahul-Das-456/weekly-budget. Rahul's girlfriend uses this repo, so keep the README accurate.
 - The Xcode project is generated from `project.yml` with `xcodegen generate`. Edit `project.yml`, never the `.pbxproj`.
-- Version: `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml`. History: 1.0 (build 1) had four fixed categories. 1.1 (build 2) added rollover and custom categories. 1.2 (build 3) added expense editing, past-week history and themes.
+- Version: `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml`. History: 1.0 (build 1) had four fixed categories. 1.1 (build 2) added rollover and custom categories. 1.4 (build 5) added deleting past weeks and importing charges from a screenshot (`ScreenshotImport.swift`). 1.2 (build 3) added expense editing, past-week history and themes.
 
 ## Files
 
@@ -45,6 +45,8 @@ The 1.0 format (`Documents/budget.json`, with enum keys `food/groceries/entertai
 - `fresh`: the "Categories" sheet is open, with Food 100, Groceries 100, Entertainment 50 and Uber / Lyft 50.
 - `lastweek` and `legacy`: Food rollover 70, Groceries 100, Entertainment 50, Uber / Lyft 0. Expenses are cleared and the total is $520.
 - `thisweek`: Food is red ($20 over), Groceries shows "+$40.00 rolled over", and a Coffee category is listed.
+- `import`: thisweek data, then the "Import charges" sheet reads `scripts/sample-statement.png` (wait ~20 s after launch for OCR). Expect 10 charges: Gathers Tea Bar 9.90 Coffee, Ventra Mobile 5.00 Uber / Lyft, Mela 33.40, Taco Bell 13.07, Prasino Cafe 21.78 Coffee, Thattu 46.63, Starbucks Store 7.56 Coffee, Lyft Temp Auth Hold 19.99 unchecked, Parlor Pizza - River 7.06 (Nov 7), Tary 26.93 (Nov 6). Debug builds print each row as `IMPORT ...`; see them with `xcrun simctl launch --console-pty <device> com.rahuldas.weeklybudget -importFiles sample-statement.png`.
+- `LAUNCH_ARGS="-showHistory YES" test_sim.sh lastweek`: Past weeks is open with one week and a "Clear all" button.
 
 SourceKit often shows errors across files (for example "Cannot find 'BudgetStore' in scope"). Those are noise. Trust `xcodebuild`.
 

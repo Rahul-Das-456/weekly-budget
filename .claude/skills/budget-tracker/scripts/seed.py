@@ -1,5 +1,5 @@
 """Write a test save file into the simulator app's Documents folder. Dates use Apple's 2001 reference epoch."""
-import sys, json, time, datetime, uuid, os
+import sys, json, time, datetime, uuid, os, shutil
 
 scen, docs = sys.argv[1], sys.argv[2]
 REF = 978307200
@@ -16,6 +16,9 @@ def cat(name, icon, budget, rollover=0):
 def exp(c, amt, note, day):
     return {"id": str(uuid.uuid4()).upper(), "categoryID": c["id"], "amount": amt, "note": note, "date": ts(day)}
 
+if scen == "import":
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample-statement.png"), docs)
+    scen = "thisweek"
 if scen in ("thisweek", "lastweek"):
     food, groc, ent, rides = cat("Food", "fork.knife", 100), cat("Groceries", "cart", 100), cat("Entertainment", "ticket", 50), cat("Uber / Lyft", "car", 50)
     cats = [food, groc, ent, rides]

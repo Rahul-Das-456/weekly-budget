@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ContentView: View {
     @Environment(BudgetStore.self) private var store
@@ -9,6 +10,10 @@ struct ContentView: View {
     /// Bumped to rebuild the title bar so it picks up a new theme's title style.
     @State private var titleBarGeneration = 0
     @State private var themeChanged = false
+    @State private var showPhotoPicker = false
+    @State private var pickedPhotos: [PhotosPickerItem] = []
+    @State private var importSource: ImportSource?
+    @State private var showHistory = false
 
     private var weekRange: String { store.weekStart.weekRange }
 
@@ -52,6 +57,12 @@ struct ContentView: View {
                 .themedRow()
 
                 Section {
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        Label("Import from screenshot", systemImage: "text.viewfinder")
+                    }
+                    .disabled(store.categories.isEmpty)
                     NavigationLink {
                         HistoryView()
                     } label: {
@@ -69,21 +80,43 @@ struct ContentView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Button {
-                    addingTo = nil
-                    showAdd = true
-                } label: {
-                    Label("Add expense", systemImage: theme.addIcon)
-                        .font(.headline)
-                        .foregroundStyle(theme.onAccent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                HStack(spacing: 10) {
+                    Button {
+                        addingTo = nil
+                        showAdd = true
+                    } label: {
+                        Label("Add expense", systemImage: theme.addIcon)
+                            .font(.headline)
+                            .foregroundStyle(theme.onAccent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        Image(systemName: "text.viewfinder")
+                            .font(.headline)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(theme.accent)
+                    .accessibilityLabel("Import from screenshot")
                 }
-                .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
                 .disabled(store.categories.isEmpty)
             }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $pickedPhotos, maxSelectionCount: 5, matching: .screenshots)
+            .onChange(of: pickedPhotos) { _, picks in
+                guard !picks.isEmpty else { return }
+                importSource = .photos(picks)
+                pickedPhotos = []
+            }
+            .sheet(isPresented: Binding(get: { importSource != nil }, set: { if !$0 { importSource = nil } })) {
+                if let importSource { ImportReviewView(source: importSource) }
+            }
+            .navigationDestination(isPresented: $showHistory) { HistoryView() }
             .sheet(isPresented: $showAdd) {
                 AddExpenseView(initial: addingTo ?? store.categories.first?.id)
             }
@@ -99,6 +132,12 @@ struct ContentView: View {
                 // Wait for the first frame so the sheet can present.
                 try? await Task.sleep(for: .milliseconds(300))
                 if !store.hasSetBudgets { showBudgets = true }
+                // Debug / screenshots: `-importFiles a.png,b.png` (in Documents) opens the import sheet,
+                // `-showHistory YES` opens Past weeks.
+                if let names = UserDefaults.standard.string(forKey: "importFiles") {
+                    importSource = .files(names.split(separator: ",").map { URL.documentsDirectory.appending(path: String($0)) })
+                }
+                if UserDefaults.standard.bool(forKey: "showHistory") { showHistory = true }
             }
         }
         .id(titleBarGeneration)
@@ -213,6 +252,7 @@ struct CategoryDetailView: View {
 
 struct HistoryView: View {
     @Environment(BudgetStore.self) private var store
+    @State private var confirmClear = false
 
     var body: some View {
         List {
@@ -241,10 +281,28 @@ struct HistoryView: View {
                     }
                 }
             }
+            .onDelete { idx in store.deleteWeeks(idx.map { store.history[$0] }) }
             .themedRow()
+            if !store.history.isEmpty {
+                Section {
+                } footer: {
+                    Text("Swipe left on a week to delete it. Deleting past weeks doesn't change the money already rolled over.")
+                }
+            }
         }
         .themedList()
         .navigationTitle("Past weeks")
+        .toolbar {
+            if !store.history.isEmpty {
+                Button("Clear all", role: .destructive) { confirmClear = true }
+                    .accessibilityIdentifier("history-clear")
+            }
+        }
+        .confirmationDialog("Delete all past weeks?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Delete \(store.history.count) week\(store.history.count == 1 ? "" : "s")", role: .destructive) { store.clearHistory() }
+        } message: {
+            Text("Their expenses are removed for good. This week and your rollover stay the same.")
+        }
     }
 }
 
